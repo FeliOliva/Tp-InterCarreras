@@ -1,25 +1,37 @@
 const mqtt = require("mqtt");
-const client = mqtt.connect("mqtt://localhost"); // Conecta al broker Mosquitto
+
+// Conecta al broker MQTT en la nube de HiveMQ con TLS
+const client = mqtt.connect(
+  "mqtt://aa6aebc1bcd64e19a125b232dfb27ad1.s1.eu.hivemq.cloud",
+  {
+    port: 8883,
+    username: "felipe", // Asegúrate de usar tu nombre de usuario correcto
+    password: "154254693Feli", // Asegúrate de usar tu contraseña correcta
+    rejectUnauthorized: false, // Para evitar errores de certificado si usas el plan gratuito
+  }
+);
 
 const topic = "arduino/data";
 const simulatedData = {
-  temperature: 25, // Simulando datos de temperatura
-  humidity: 60, // Simulando datos de humedad
+  temperature: 25,
+  humidity: 60,
 };
 
-// Simulamos la conexión del "Arduino" al broker
 client.on("connect", () => {
-  console.log("Broker connected to MQTT broker.");
+  console.log("Connected to cloud MQTT broker on HiveMQ.");
 
-  // Simula el envío de datos desde el "Arduino" cada 5 segundos
   setInterval(() => {
     const message = JSON.stringify(simulatedData);
     client.publish(topic, message, () => {
-      console.log(`Arduino data sent: ${message}`);
+      console.log(`Data sent: ${message}`);
     });
 
-    // Simular cambios en los datos
-    simulatedData.temperature += Math.random() * 2 - 1; // Cambios aleatorios de temperatura
-    simulatedData.humidity += Math.random() * 2 - 1; // Cambios aleatorios de humedad
-  }, 5000); // Publica cada 5 segundos
+    // Simulamos cambios en los datos
+    simulatedData.temperature += Math.random() * 2 - 1;
+    simulatedData.humidity += Math.random() * 2 - 1;
+  }, 5000);
+});
+
+client.on("error", (error) => {
+  console.error(`Error: ${error}`);
 });
