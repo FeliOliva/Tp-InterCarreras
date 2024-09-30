@@ -1,29 +1,35 @@
+// Cargar variables de entorno desde el archivo .env
+require("dotenv").config();
+
 const mqtt = require("mqtt");
 
-// Conecta al broker MQTT en la nube de HiveMQ con TLS
-const client = mqtt.connect(
-  "mqtt://aa6aebc1bcd64e19a125b232dfb27ad1.s1.eu.hivemq.cloud",
-  {
-    port: 8883,
-    username: "felipe", // Asegúrate de usar tu nombre de usuario correcto
-    password: "154254693Feli", // Asegúrate de usar tu contraseña correcta
-    rejectUnauthorized: false, // Para evitar errores de certificado si usas el plan gratuito
-  }
-);
+// Acceder a las variables de entorno
+const usuario = process.env.USUARIO;
+const password = process.env.PASSWORD;
 
-const topic = "arduino/data";
+// Configurar la conexión al broker MQTT
+const client = mqtt.connect({
+  host: "aa6aebc1bcd64e19a125b232dfb27ad1.s1.eu.hivemq.cloud",
+  port: 8883,
+  protocol: "mqtts", // mqtts para conexiones seguras
+  username: usuario, // Usuario obtenido del archivo .env
+  password: password, // Contraseña obtenida del archivo .env
+  rejectUnauthorized: false,
+});
+
+const topic = "arduino/data"; // Asegúrate de usar el mismo tópico
 
 client.on("connect", () => {
-  console.log("Subscriber connected to cloud broker on HiveMQ.");
+  console.log("Subscriber connected to broker.");
   client.subscribe(topic, () => {
     console.log(`Subscribed to topic "${topic}"`);
   });
 });
 
 client.on("message", (topic, message) => {
-  console.log(`Received message: "${message.toString()}" on topic "${topic}"`);
+  console.log(`Message received on topic "${topic}": ${message.toString()}`);
 });
 
 client.on("error", (error) => {
-  console.error(`Error: ${error}`);
+  console.error("Connection error: ", error);
 });
