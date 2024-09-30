@@ -17,9 +17,8 @@ const client = mqtt.connect({
   rejectUnauthorized: false,
 });
 
-const topic = "arduino/data"; // Tópico en el que se publica
+const topic = "humedad"; // Tópico en el que se publica
 const simulatedData = {
-  temperature: 25,
   humidity: 60,
 };
 
@@ -28,11 +27,10 @@ client.on("connect", () => {
   setInterval(() => {
     const message = JSON.stringify(simulatedData);
     client.publish(topic, message, () => {
-      console.log(`Message sent: ${message}`);
+      console.log(`Message sent: ${message}%`);
     });
 
     // Simulamos cambios en los datos
-    simulatedData.temperature += Math.random() * 2 - 1;
     simulatedData.humidity += Math.random() * 2 - 1;
   }, 5000);
 });

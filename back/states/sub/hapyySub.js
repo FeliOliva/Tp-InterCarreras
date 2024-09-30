@@ -17,7 +17,7 @@ const client = mqtt.connect({
   rejectUnauthorized: false,
 });
 
-const topic = "arduino/data"; // Asegúrate de usar el mismo tópico
+const topic = "happy"; // Asegúrate de usar el mismo tópico
 
 client.on("connect", () => {
   console.log("Subscriber connected to broker.");
@@ -27,9 +27,22 @@ client.on("connect", () => {
 });
 
 client.on("message", (topic, message) => {
-  console.log(`Message received on topic "${topic}": ${message.toString()}`);
-});
+  const parsedMessage = JSON.parse(message.toString()); // Parsear el mensaje recibido
 
+  // Leer happyValue del mensaje
+  const happyValue = parsedMessage.happyValue;
+
+  // Comparar el happyValue
+  if (happyValue <= 5) {
+    console.log(
+      `Message received on topic "${topic}": La mascota está triste, happyValue: ${happyValue}`
+    );
+  } else {
+    console.log(
+      `Message received on topic "${topic}": La mascota está feliz, happyValue: ${happyValue}`
+    );
+  }
+});
 client.on("error", (error) => {
   console.error("Connection error: ", error);
 });
