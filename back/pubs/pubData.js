@@ -17,9 +17,11 @@ const client = mqtt.connect({
   rejectUnauthorized: false,
 });
 
-const topic = "humedad"; // Tópico en el que se publica
+const topic = "Data"; // Tópico en el que se publica
 const simulatedData = {
   humidity: 60,
+  light: 300,
+  temperature: 25,
 };
 
 client.on("connect", () => {
@@ -32,6 +34,8 @@ client.on("connect", () => {
 
     // Simulamos cambios en los datos
     simulatedData.humidity += Math.random() * 2 - 1;
+    simulatedData.light += Math.random() * 100 - 50;
+    simulatedData.temperature += Math.random() * 2 - 2;
   }, 5000);
 });
 

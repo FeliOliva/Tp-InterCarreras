@@ -27,7 +27,13 @@ client.on("connect", () => {
 });
 
 client.on("message", (topic, message) => {
-  console.log(`Message received on topic "${topic}": ${message.toString()}`);
+  if (topic === "temperatura") {
+    if (message.toString() < 20) {
+      console.log("hace frio qliao");
+    } else {
+      console.log("hace calor qliao");
+    }
+  }
 });
 
 client.on("error", (error) => {

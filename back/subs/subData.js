@@ -17,7 +17,7 @@ const client = mqtt.connect({
   rejectUnauthorized: false,
 });
 
-const topic = "humedad"; // Asegúrate de usar el mismo tópico
+const topic = "Data"; // Asegúrate de usar el mismo tópico
 
 client.on("connect", () => {
   console.log("Subscriber connected to broker.");
@@ -27,7 +27,28 @@ client.on("connect", () => {
 });
 
 client.on("message", (topic, message) => {
-  console.log(`Message received on topic "${topic}": ${message.toString()}`);
+  if (topic === "Data") {
+    try {
+      const data = JSON.parse(message.toString());
+      // console.log(`Received data: ${JSON.stringify(data)}`);
+
+      // Extraer las propiedades del objeto data
+      const { humidity, light, temperature } = data;
+
+      // Evaluar las condiciones y mostrar el mensaje correspondiente
+      if (humidity < 50 && temperature < 27) {
+        console.log("Tiene frío");
+      } else if (humidity >= 50 && temperature >= 27) {
+        console.log("Tiene calor");
+      }
+
+      if (light < 320 && humidity > 10) {
+        console.log("Tiene ansiedad");
+      }
+    } catch (error) {
+      console.error("Error al procesar el mensaje: ", error);
+    }
+  }
 });
 
 client.on("error", (error) => {
