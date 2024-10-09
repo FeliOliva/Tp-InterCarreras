@@ -8,37 +8,38 @@ const bodyParser = require("body-parser");
 const app = express();
 app.use(bodyParser.json()); // Para parsear JSON en el cuerpo de las solicitudes
 
-// Acceder a las variables de entorno
-const usuario = process.env.USUARIO;
-const password = process.env.PASSWORD;
-const host = process.env.HOST;
-
 // Configurar el cliente MQTT
 const client = mqtt.connect({
-  host: host, // Cambia con tu broker MQTT en la nube
+  host: process.env.HOST, // Cambia con tu broker MQTT en la nube
   port: 8883,
   protocol: "mqtts",
-  username: usuario,
-  password: password,
+  username: process.env.USUARIO,
+  password: process.env.PASSWORD,
   rejectUnauthorized: false,
 });
 
-const topic = "happy"; // Cambia este tópico según sea necesario
+const topic = "necesidades"; // Cambia este tópico a "necesidades"
 
 // Cuando el cliente MQTT se conecta
 client.on("connect", () => {
-  console.log("Publisher connected to broker.");
+  console.log("Publisher de necesidades conectado al broker.");
 });
 
 // Definir la ruta para el POST
-app.post("/publish", (req, res) => {
-  const { happyValue } = req.body;
+app.post("/necesidades/publish", (req, res) => {
+  const { foodAmount, waterAmount, playAmount } = req.body;
 
-  if (!happyValue === undefined) {
-    return res.status(400).send("No se enviaron datos para publicar.");
+  if (
+    foodAmount === undefined ||
+    waterAmount === undefined ||
+    playAmount === undefined
+  ) {
+    return res
+      .status(400)
+      .send("No se enviaron datos de comida para publicar.");
   }
 
-  const message = JSON.stringify({ happyValue });
+  const message = JSON.stringify({ foodAmount, waterAmount, playAmount });
 
   // Publicar el mensaje en el tópico de MQTT
   client.publish(topic, message, (err) => {
@@ -49,8 +50,12 @@ app.post("/publish", (req, res) => {
         .send("Error al publicar el mensaje en el broker MQTT.");
     }
 
-    console.log(`Datos publicados: ${message}`);
-    res.status(200).send(`Datos publicados en el tópico ${topic}: ${message}`);
+    console.log(`Datos de necesidades publicados: ${message}`);
+    res
+      .status(200)
+      .send(
+        `Datos de necesidades publicados en el tópico ${topic}: ${message}`
+      );
   });
 });
 
@@ -60,7 +65,7 @@ client.on("error", (error) => {
 });
 
 // Iniciar el servidor en el puerto 3000
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`Servidor API REST ejecutándose en http://localhost:${PORT}`);
 });
