@@ -6,7 +6,8 @@
   "scripts": {
     "pubLife": "node states/pub/lifePub.js",
     "subLife": "node states/sub/lifeSub.js",
-    "necesidadesPub": "node states/pub/necesidadesPub.js"
+    "necesidadesPub": "node states/pub/necesidadesPub.js",
+    "happyPub": "node states/pub/happyPub.js"
   },
   "keywords": [],
   "author": "",

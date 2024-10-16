@@ -6,32 +6,24 @@ const mqtt = require("mqtt");
 const bodyParser = require("body-parser");
 
 const app = express();
-app.use(bodyParser.json()); // Para parsear JSON en el cuerpo de las solicitudes
+app.use(bodyParser.json());
 
-// Acceder a las variables de entorno
-const usuario = process.env.USUARIO;
-const password = process.env.PASSWORD;
-const host = process.env.HOST;
-
-// Configurar el cliente MQTT
 const client = mqtt.connect({
-  host: host, // Cambia con tu broker MQTT en la nube
+  host: process.env.HOST,
   port: 8883,
   protocol: "mqtts",
-  username: usuario,
-  password: password,
+  username: process.env.USUARIO,
+  password: process.env.PASSWORD,
   rejectUnauthorized: false,
 });
 
-const topic = "happy"; // Cambia este tópico según sea necesario
+const topic = "happy";
 
-// Cuando el cliente MQTT se conecta
 client.on("connect", () => {
   console.log("Publisher connected to broker.");
 });
 
-// Definir la ruta para el POST
-app.post("/publish", (req, res) => {
+app.post("/happy/publish", (req, res) => {
   const { happyValue } = req.body;
 
   if (!happyValue === undefined) {

@@ -27,19 +27,18 @@ client.on("connect", () => {
 
 // Definir la ruta para el POST
 app.post("/necesidades/publish", (req, res) => {
-  const { foodAmount, waterAmount, playAmount } = req.body;
+  const { foodAmount, waterAmount } = req.body;
 
   if (
     foodAmount === undefined ||
-    waterAmount === undefined ||
-    playAmount === undefined
+    waterAmount === undefined
   ) {
     return res
       .status(400)
       .send("No se enviaron datos de comida para publicar.");
   }
 
-  const message = JSON.stringify({ foodAmount, waterAmount, playAmount });
+  const message = JSON.stringify({ foodAmount, waterAmount });
 
   // Publicar el mensaje en el tópico de MQTT
   client.publish(topic, message, (err) => {
