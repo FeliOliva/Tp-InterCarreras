@@ -3,21 +3,17 @@ require("dotenv").config();
 
 const mqtt = require("mqtt");
 
-// Acceder a las variables de entorno
-const usuario = process.env.USUARIO;
-const password = process.env.PASSWORD;
-
 // Configurar la conexión al broker MQTT
 const client = mqtt.connect({
-  host: "aa6aebc1bcd64e19a125b232dfb27ad1.s1.eu.hivemq.cloud",
+  host: process.env.HOST,
   port: 8883,
   protocol: "mqtts", // mqtts para conexiones seguras
-  username: usuario, // Usuario obtenido del archivo .env
-  password: password, // Contraseña obtenida del archivo .env
+  username: process.env.USUARIO, // Usuario obtenido del archivo .env
+  password: process.env.PASSWORD, // Contraseña obtenida del archivo .env
   rejectUnauthorized: false,
 });
 
-const topic = "Data"; // Asegúrate de usar el mismo tópico
+const topic = "canal"; // Asegúrate de usar el mismo tópico
 
 client.on("connect", () => {
   console.log("Subscriber connected to broker.");
@@ -27,26 +23,17 @@ client.on("connect", () => {
 });
 
 client.on("message", (topic, message) => {
-  if (topic === "Data") {
+  console.log(`Mensaje recibido en el tópico "${topic}":`);
+  const msgString = message.toString();
+  console.log(msgString); // Mostrar el mensaje como string
+
+  // Si el mensaje es un JSON, intentamos parsearlo
+  if (topic === "canal") {
     try {
-      const data = JSON.parse(message.toString());
-      // console.log(`Received data: ${JSON.stringify(data)}`);
-
-      // Extraer las propiedades del objeto data
-      const { humidity, light, temperature } = data;
-
-      // Evaluar las condiciones y mostrar el mensaje correspondiente
-      if (humidity < 50 && temperature < 27) {
-        console.log("Tiene frío");
-      } else if (humidity >= 50 && temperature >= 27) {
-        console.log("Tiene calor");
-      }
-
-      if (light < 320 && humidity > 10) {
-        console.log("Tiene ansiedad");
-      }
+      const data = JSON.parse(msgString); // Intentar parsear JSON
+      console.log("Mensaje en formato JSON:", data);
     } catch (error) {
-      console.error("Error al procesar el mensaje: ", error);
+      console.error("Error al procesar el mensaje (no es JSON):", error);
     }
   }
 });

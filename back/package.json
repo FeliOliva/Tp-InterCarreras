@@ -7,7 +7,9 @@
     "pubLife": "node states/pub/lifePub.js",
     "subLife": "node states/sub/lifeSub.js",
     "necesidadesPub": "node states/pub/necesidadesPub.js",
-    "happyPub": "node states/pub/happyPub.js"
+    "happyPub": "node states/pub/happyPub.js",
+    "pubData": "node pubSimulationTSH/pubs/pubData.js",
+    "subData": "node pubSimulationTSH/subs/subData.js"
   },
   "keywords": [],
   "author": "",

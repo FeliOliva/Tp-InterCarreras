@@ -24,15 +24,20 @@ let foodAmount = 100;
 let happyAmount = 53;
 let personajeVivo = true;
 
-const maxVida = 62;
+const maxVida = 100;
 const umbralHambre = 40;
 const umbralSed = 60;
 const umbralFelicidad = 50;
-
+// const umbralCalor = 24;
+// const umbralSuenio =
 client.on("connect", () => {
   console.log("Publicador de vida conectado al broker.");
-  client.subscribe(necesidadesTopic, () => console.log(`Suscrito al tópico ${necesidadesTopic}`));
-  client.subscribe(happyTopic, () => console.log(`Suscrito al tópico ${happyTopic}`));
+  client.subscribe(necesidadesTopic, () =>
+    console.log(`Suscrito al tópico ${necesidadesTopic}`)
+  );
+  client.subscribe(happyTopic, () =>
+    console.log(`Suscrito al tópico ${happyTopic}`)
+  );
 
   const vidaInterval = setInterval(() => {
     if (personajeVivo) {
@@ -77,7 +82,10 @@ function descontarVidaYSustancias() {
     verificarYPublicarEstado();
   } else {
     personajeVivo = false;
-    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje ha muerto", puntosVida: 0 }));
+    client.publish(
+      lifeTopic,
+      JSON.stringify({ mensaje: "El personaje ha muerto", puntosVida: 0 })
+    );
   }
 }
 
@@ -105,7 +113,9 @@ function verificarYPublicarEstado() {
   }
 
   client.publish(lifeTopic, JSON.stringify(mensaje));
-  console.log(`Puntos de vida: ${puntosVida}, Sed: ${waterAmount}, Comida: ${foodAmount}, Felicidad: ${happyAmount}`);
+  console.log(
+    `Puntos de vida: ${puntosVida}, Sed: ${waterAmount}, Comida: ${foodAmount}, Felicidad: ${happyAmount}`
+  );
 }
 
 client.on("error", (error) => {

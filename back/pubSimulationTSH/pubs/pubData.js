@@ -3,17 +3,13 @@ require("dotenv").config();
 
 const mqtt = require("mqtt");
 
-// Acceder a las variables de entorno
-const usuario = process.env.USUARIO;
-const password = process.env.PASSWORD;
-
 // Cambia esto con la URL, puerto, nombre de usuario y contraseña correctos
 const client = mqtt.connect({
-  host: "aa6aebc1bcd64e19a125b232dfb27ad1.s1.eu.hivemq.cloud",
+  host: process.env.HOST,
   port: 8883,
   protocol: "mqtts", // mqtts para conexiones seguras
-  username: usuario, // Reemplaza con el usuario correcto
-  password: password, // Reemplaza con la contraseña correcta
+  username: process.env.USUARIO, // Reemplaza con el usuario correcto
+  password: process.env.PASSWORD, // Reemplaza con la contraseña correcta
   rejectUnauthorized: false,
 });
 
@@ -33,9 +29,9 @@ client.on("connect", () => {
     });
 
     // Simulamos cambios en los datos
-    simulatedData.humidity += Math.random() * 2 - 1;
-    simulatedData.light += Math.random() * 100 - 50;
-    simulatedData.temperature += Math.random() * 2 - 2;
+    simulatedData.humidity += Math.round(Math.random() * 2 - 1);
+    simulatedData.light += Math.round(Math.random() * 100 - 50);
+    simulatedData.temperature += Math.round(Math.random() * 2 - 2);
   }, 5000);
 });
 
