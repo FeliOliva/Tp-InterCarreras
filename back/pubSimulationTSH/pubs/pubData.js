@@ -1,37 +1,39 @@
-// Cargar variables de entorno desde el archivo .env
 require("dotenv").config();
-
 const mqtt = require("mqtt");
 
-// Cambia esto con la URL, puerto, nombre de usuario y contraseña correctos
 const client = mqtt.connect({
   host: process.env.HOST,
   port: 8883,
-  protocol: "mqtts", // mqtts para conexiones seguras
-  username: process.env.USUARIO, // Reemplaza con el usuario correcto
-  password: process.env.PASSWORD, // Reemplaza con la contraseña correcta
+  protocol: "mqtts",
+  username: process.env.USUARIO,
+  password: process.env.PASSWORD,
   rejectUnauthorized: false,
 });
 
-const topic = "Data"; // Tópico en el que se publica
+const topic = "data";
+const umbralHumedad = 80;
+const umbralLuz = 300;
+const umbralTemperatura = 24;
+
 const simulatedData = {
-  humidity: 60,
-  light: 300,
-  temperature: 25,
+  humidity: umbralHumedad,  // Inicialmente cerca del umbral
+  light: umbralLuz,         // Inicialmente cerca del umbral
+  temperature: umbralTemperatura, // Inicialmente cerca del umbral
 };
 
 client.on("connect", () => {
   console.log("Publisher connected to broker.");
+
   setInterval(() => {
+    // Simular variación controlada alrededor de los umbrales (±5%)
+    simulatedData.humidity = Math.max(50, Math.min(100, umbralHumedad + Math.round(Math.random() * 10 - 5)));
+    simulatedData.light = Math.max(200, Math.min(400, umbralLuz + Math.round(Math.random() * 50 - 25)));
+    simulatedData.temperature = Math.max(18, Math.min(30, umbralTemperatura + Math.round(Math.random() * 4 - 2)));
+
     const message = JSON.stringify(simulatedData);
     client.publish(topic, message, () => {
-      console.log(`Message sent: ${message}%`);
+      console.log(`Message sent: ${message}`);
     });
-
-    // Simulamos cambios en los datos
-    simulatedData.humidity += Math.round(Math.random() * 2 - 1);
-    simulatedData.light += Math.round(Math.random() * 100 - 50);
-    simulatedData.temperature += Math.round(Math.random() * 2 - 2);
   }, 5000);
 });
 

@@ -17,19 +17,25 @@ const client = mqtt.connect({
 const lifeTopic = "life";
 const necesidadesTopic = "necesidades";
 const happyTopic = "happy";
+const dataTopic = "data";
 
 let puntosVida = 100;
 let waterAmount = 100;
 let foodAmount = 100;
 let happyAmount = 53;
+let temperature;
+let humidity;
+let light;
 let personajeVivo = true;
 
 const maxVida = 100;
 const umbralHambre = 40;
 const umbralSed = 60;
 const umbralFelicidad = 50;
-// const umbralCalor = 24;
-// const umbralSuenio =
+const umbralCalor = 24;
+const umbralSuenio = 300;
+const umbralHumedad = 80;
+
 client.on("connect", () => {
   console.log("Publicador de vida conectado al broker.");
   client.subscribe(necesidadesTopic, () =>
@@ -37,6 +43,9 @@ client.on("connect", () => {
   );
   client.subscribe(happyTopic, () =>
     console.log(`Suscrito al tópico ${happyTopic}`)
+  );
+  client.subscribe(dataTopic, () =>
+    console.log(`Suscrito al tópico ${dataTopic}`)
   );
 
   const vidaInterval = setInterval(() => {
@@ -67,6 +76,14 @@ client.on("message", (topic, message) => {
     happyAmount = Math.min(happyAmount + happyValue, 100);
     verificarYPublicarEstado();
   }
+
+  if (topic === dataTopic && personajeVivo) {
+    ({ humidity, light, temperature } = parsedMessage);
+    humidity = Math.min(humidity, 100);
+    light = Math.min(light, 100);
+    temperature = Math.min(temperature, 100);
+    verificarYPublicarEstado();
+  }
 });
 
 function calcularIncremento(food, water) {
@@ -90,33 +107,58 @@ function descontarVidaYSustancias() {
 }
 
 function verificarYPublicarEstado() {
-  let mensaje = { puntosVida, waterAmount, foodAmount, happyAmount };
+  let mensaje = { puntosVida, waterAmount, foodAmount, happyAmount, temperature, humidity, light };
 
   const hambre = foodAmount < umbralHambre;
   const sed = waterAmount < umbralSed;
   const aburrido = happyAmount < umbralFelicidad;
+  const calor = temperature > umbralCalor;  // Si la temperatura es mayor al umbral
+  const suenio = light < umbralSuenio;      // Si la luz es menor al umbral
+  const humedadAlta = humidity > umbralHumedad;
 
-  if (hambre && sed) {
-    mensaje.mensaje = "El personaje tiene hambre y sed";
-  } else if (hambre) {
-    mensaje.mensaje = "El personaje tiene hambre";
-  } else if (sed) {
-    mensaje.mensaje = "El personaje tiene sed";
-  } else if (aburrido) {
-    mensaje.mensaje = "El personaje está aburrido";
-  } else if (puntosVida === maxVida) {
-    mensaje.mensaje = "El personaje está lleno *eructa";
-  } else if (happyAmount > umbralFelicidad) {
-    mensaje.mensaje = `El personaje está feliz con nivel de felicidad de ${happyAmount}`;
-  } else {
-    mensaje.mensaje = "Estado normal";
+  // Publicar siempre los datos de temperatura, luz y humedad
+  client.publish(
+    lifeTopic,
+    JSON.stringify({
+      mensaje: `El personaje tiene una temperatura de ${temperature}°C, iluminación de ${light} lux, y una humedad de ${humidity}%`,
+      puntosVida,
+      waterAmount,
+      foodAmount,
+      happyAmount,
+      temperature,
+      humidity,
+      light
+    })
+  );
+
+  // Publicar mensajes condicionales (sin else if, para que no se pisen)
+  if (hambre) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje tiene hambre urgente." }));
+  }
+  if (sed) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje necesita agua inmediatamente." }));
+  }
+  if (aburrido) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje está aburrido y desmotivado." }));
   }
 
-  client.publish(lifeTopic, JSON.stringify(mensaje));
+  // Publicar mensajes de calor, sueño y humedad independientemente
+  if (calor) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje está sofocado por una temperatura de ${temperature}°C.` }));
+  }
+  if (suenio) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje tiene sueño debido a la baja iluminación (${light} lux).` }));
+  }
+  if (humedadAlta) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje está incómodo por la humedad alta (${humidity}%).` }));
+  }
+
+  // Imprimir el estado general en consola
   console.log(
     `Puntos de vida: ${puntosVida}, Sed: ${waterAmount}, Comida: ${foodAmount}, Felicidad: ${happyAmount}`
   );
 }
+
 
 client.on("error", (error) => {
   console.error("Connection error: ", error);
