@@ -107,57 +107,52 @@ function descontarVidaYSustancias() {
 }
 
 function verificarYPublicarEstado() {
-  let mensaje = { puntosVida, waterAmount, foodAmount, happyAmount, temperature, humidity, light };
+  let mensaje = {
+    puntosVida,
+    waterAmount,
+    foodAmount,
+    happyAmount,
+    temperature,
+    humidity,
+    light
+  };
 
-  const hambre = foodAmount < umbralHambre;
-  const sed = waterAmount < umbralSed;
-  const aburrido = happyAmount < umbralFelicidad;
-  const calor = temperature > umbralCalor;  // Si la temperatura es mayor al umbral
-  const suenio = light < umbralSuenio;      // Si la luz es menor al umbral
-  const humedadAlta = humidity > umbralHumedad;
-
-  // Publicar siempre los datos de temperatura, luz y humedad
+  // Publicar siempre los datos de temperatura, luz y humedad junto con los valores actuales
   client.publish(
     lifeTopic,
     JSON.stringify({
       mensaje: `El personaje tiene una temperatura de ${temperature}°C, iluminación de ${light} lux, y una humedad de ${humidity}%`,
-      puntosVida,
-      waterAmount,
-      foodAmount,
-      happyAmount,
+      puntosVida: puntosVida || 0,   // Asegurarse que nunca se envíen como undefined
+      waterAmount: waterAmount || 0,
+      foodAmount: foodAmount || 0,
+      happyAmount: happyAmount || 0,
       temperature,
       humidity,
       light
     })
   );
 
-  // Publicar mensajes condicionales (sin else if, para que no se pisen)
-  if (hambre) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje tiene hambre urgente." }));
+  // Publicar mensajes condicionales adicionales sin alterar el estado anterior
+  if (foodAmount < umbralHambre) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje tiene hambre urgente.", puntosVida, waterAmount, foodAmount, happyAmount }));
   }
-  if (sed) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje necesita agua inmediatamente." }));
+  if (waterAmount < umbralSed) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje necesita agua inmediatamente.", puntosVida, waterAmount, foodAmount, happyAmount }));
   }
-  if (aburrido) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje está aburrido y desmotivado." }));
+  if (happyAmount < umbralFelicidad) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje está aburrido y desmotivado.", puntosVida, waterAmount, foodAmount, happyAmount }));
   }
-
-  // Publicar mensajes de calor, sueño y humedad independientemente
-  if (calor) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje está sofocado por una temperatura de ${temperature}°C.` }));
+  if (temperature > umbralCalor) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje está sofocado por una temperatura de ${temperature}°C.`, puntosVida, waterAmount, foodAmount, happyAmount }));
   }
-  if (suenio) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje tiene sueño debido a la baja iluminación (${light} lux).` }));
+  if (light < umbralSuenio) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje tiene sueño debido a la baja iluminación (${light} lux).`, puntosVida, waterAmount, foodAmount, happyAmount }));
   }
-  if (humedadAlta) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje está incómodo por la humedad alta (${humidity}%).` }));
+  if (humidity > umbralHumedad) {
+    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje está incómodo por la humedad alta (${humidity}%).`, puntosVida, waterAmount, foodAmount, happyAmount }));
   }
-
-  // Imprimir el estado general en consola
-  console.log(
-    `Puntos de vida: ${puntosVida}, Sed: ${waterAmount}, Comida: ${foodAmount}, Felicidad: ${happyAmount}`
-  );
 }
+
 
 
 client.on("error", (error) => {
