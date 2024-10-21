@@ -1,5 +1,9 @@
 require("dotenv").config();
 const mqtt = require("mqtt");
+const express = require("express");
+
+const app = express();
+const port = process.env.PORT || 3000;
 
 const usuario = process.env.USUARIO;
 const password = process.env.PASSWORD;
@@ -27,6 +31,7 @@ let temperature;
 let humidity;
 let light;
 let personajeVivo = true;
+let estado = 0;
 
 const maxVida = 100;
 const umbralHambre = 40;
@@ -35,6 +40,17 @@ const umbralFelicidad = 50;
 const umbralCalor = 24;
 const umbralSuenio = 300;
 const umbralHumedad = 80;
+
+// Guarda el estado en un objeto para poder compartirlo mediante la API
+let currentState = {
+  puntosVida,
+  waterAmount,
+  foodAmount,
+  happyAmount,
+  temperature,
+  humidity,
+  light,
+};
 
 client.on("connect", () => {
   console.log("Publicador de vida conectado al broker.");
@@ -107,53 +123,87 @@ function descontarVidaYSustancias() {
 }
 
 function verificarYPublicarEstado() {
-  let mensaje = {
-    puntosVida,
-    waterAmount,
-    foodAmount,
-    happyAmount,
-    temperature,
-    humidity,
-    light
+  currentState = {
+    puntosVida: puntosVida || 0,
+    waterAmount: waterAmount || 0,
+    foodAmount: foodAmount || 0,
+    happyAmount: happyAmount || 0,
+    temperature: temperature || 0,
+    humidity: humidity || 0,
+    light: light || 0,
+    estado,
   };
 
-  // Publicar siempre los datos de temperatura, luz y humedad junto con los valores actuales
+  let mensaje = "";
+  let estados = [];
+
+  // Publicar mensajes condicionales sin sobrescribir el estado directamente
+  if (foodAmount < umbralHambre) {
+    estados.push(1); // Hambre urgente
+    mensaje += "El personaje tiene hambre urgente. ";
+  }
+  if (waterAmount < umbralSed) {
+    estados.push(2); // Necesita agua
+    mensaje += "El personaje necesita agua inmediatamente. ";
+  }
+  if (happyAmount < umbralFelicidad) {
+    estados.push(3); // Está aburrido
+    mensaje += "El personaje está aburrido y desmotivado. ";
+  }
+  if (temperature > umbralCalor) {
+    estados.push(4); // Está sofocado por calor
+    mensaje += `El personaje está sofocado por una temperatura de ${temperature}°C. `;
+  }
+  if (light < umbralSuenio) {
+    estados.push(5); // Tiene sueño por baja iluminación
+    mensaje += `El personaje tiene sueño debido a la baja iluminación (${light} lux). `;
+  }
+  if (humidity > umbralHumedad) {
+    estados.push(6); // Incómodo por humedad alta
+    mensaje += `El personaje está incómodo por la humedad alta (${humidity}%). `;
+  }
+
+  // Si hay algún estado crítico, actualiza el estado general y publica el mensaje
+  if (estados.length > 0) {
+    estado = Math.min(...estados); // Toma el estado más crítico (el más bajo numéricamente)
+    client.publish(
+      lifeTopic,
+      JSON.stringify({
+        puntosVida,
+        waterAmount,
+        foodAmount,
+        happyAmount,
+        estado,
+        mensaje,
+      })
+    );
+  }
+
+  // Publicar siempre los datos actuales
   client.publish(
     lifeTopic,
     JSON.stringify({
-      mensaje: `El personaje tiene una temperatura de ${temperature}°C, iluminación de ${light} lux, y una humedad de ${humidity}%`,
-      puntosVida: puntosVida || 0,   // Asegurarse que nunca se envíen como undefined
+      puntosVida: puntosVida || 0,
       waterAmount: waterAmount || 0,
       foodAmount: foodAmount || 0,
       happyAmount: happyAmount || 0,
-      temperature,
-      humidity,
-      light
+      temperature: temperature || 0,
+      humidity: humidity || 0,
+      light: light || 0,
+      estado,
     })
   );
-
-  // Publicar mensajes condicionales adicionales sin alterar el estado anterior
-  if (foodAmount < umbralHambre) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje tiene hambre urgente.", puntosVida, waterAmount, foodAmount, happyAmount }));
-  }
-  if (waterAmount < umbralSed) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje necesita agua inmediatamente.", puntosVida, waterAmount, foodAmount, happyAmount }));
-  }
-  if (happyAmount < umbralFelicidad) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: "El personaje está aburrido y desmotivado.", puntosVida, waterAmount, foodAmount, happyAmount }));
-  }
-  if (temperature > umbralCalor) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje está sofocado por una temperatura de ${temperature}°C.`, puntosVida, waterAmount, foodAmount, happyAmount }));
-  }
-  if (light < umbralSuenio) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje tiene sueño debido a la baja iluminación (${light} lux).`, puntosVida, waterAmount, foodAmount, happyAmount }));
-  }
-  if (humidity > umbralHumedad) {
-    client.publish(lifeTopic, JSON.stringify({ mensaje: `El personaje está incómodo por la humedad alta (${humidity}%).`, puntosVida, waterAmount, foodAmount, happyAmount }));
-  }
 }
 
+// API para exponer los estados actualizados
+app.get("/estado", (req, res) => {
+  res.json(currentState);
+});
 
+// Servidor HTTP
+app.listen(port, () => {
+  console.log(`API escuchando en http://localhost:${port}`);
+});
 
 client.on("error", (error) => {
   console.error("Connection error: ", error);
