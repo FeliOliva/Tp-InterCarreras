@@ -9,7 +9,8 @@
     "necesidadesPub": "node states/pub/necesidadesPub.js",
     "happyPub": "node states/pub/happyPub.js",
     "pubData": "node pubSimulationTSH/pubs/pubData.js",
-    "subData": "node pubSimulationTSH/subs/subData.js"
+    "subData": "node pubSimulationTSH/subs/subData.js",
+    "pubRevivir": "node states/pub/revivirPub.js"
   },
   "keywords": [],
   "author": "",

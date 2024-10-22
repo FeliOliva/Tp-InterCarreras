@@ -4,8 +4,10 @@ require("dotenv").config();
 const express = require("express");
 const mqtt = require("mqtt");
 const bodyParser = require("body-parser");
+const cors = require("cors");
 
 const app = express();
+app.use(cors());
 app.use(bodyParser.json());
 
 const client = mqtt.connect({
@@ -52,7 +54,7 @@ client.on("error", (error) => {
 });
 
 // Iniciar el servidor en el puerto 3000
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3003;
 app.listen(PORT, () => {
   console.log(`Servidor API REST ejecutándose en http://localhost:${PORT}`);
 });

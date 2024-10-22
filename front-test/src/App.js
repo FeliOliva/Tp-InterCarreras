@@ -1,9 +1,17 @@
 import './App.css';
-import MqttLifeSubscriber from './components/MqttLifeSubscriber ';
+import DataComponent from './components/DataComponent';
+import AumentarFelicidad from './components/AumentarFelicidad';
+import AumentarVida from './components/AumentarVida';
+import Revivir from './components/Revivir';
 
 function App() {
   return (
-    <MqttLifeSubscriber />
+    <div>
+      <DataComponent />
+      < AumentarVida />
+      <AumentarFelicidad />
+      <Revivir />
+    </div>
   );
 }
 

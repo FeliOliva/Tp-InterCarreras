@@ -4,8 +4,10 @@ require("dotenv").config();
 const express = require("express");
 const mqtt = require("mqtt");
 const bodyParser = require("body-parser");
+const cors = require("cors");
 
 const app = express();
+app.use(cors());
 app.use(bodyParser.json()); // Para parsear JSON en el cuerpo de las solicitudes
 
 // Configurar el cliente MQTT
