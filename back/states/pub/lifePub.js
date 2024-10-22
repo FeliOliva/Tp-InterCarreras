@@ -26,7 +26,7 @@ const happyTopic = "happy";
 const dataTopic = "data";
 const revivirTopic = "revivir";
 
-let puntosVida = 2;
+let puntosVida = 3;
 let waterAmount = 100;
 let foodAmount = 100;
 let happyAmount = 53;
@@ -35,7 +35,6 @@ let humidity;
 let light;
 let personajeVivo = true;
 let estado = 0;
-let vidaInterval; // Declarar la variable a nivel global para que sea accesible
 
 const maxVida = 100;
 const umbralHambre = 40;
@@ -45,7 +44,6 @@ const umbralCalor = 24;
 const umbralSuenio = 300;
 const umbralHumedad = 80;
 
-// Guarda el estado en un objeto para poder compartirlo mediante la API
 let currentState = {
   puntosVida,
   waterAmount,
@@ -67,6 +65,9 @@ client.on("connect", () => {
   client.subscribe(dataTopic, () =>
     console.log(`Suscrito al tópico ${dataTopic}`)
   );
+  client.subscribe(revivirTopic, () =>
+    console.log(`Suscrito al tópico ${revivirTopic}`)
+  );
 
   const vidaInterval = setInterval(() => {
     if (personajeVivo) {
@@ -79,7 +80,7 @@ client.on("connect", () => {
 
 client.on("message", (topic, message) => {
   const parsedMessage = JSON.parse(message.toString());
-
+  console.log(parsedMessage);
   if (topic === necesidadesTopic && personajeVivo) {
     const { foodAmount: newFood, waterAmount: newWater } = parsedMessage;
     let incrementoVida = calcularIncremento(newFood, newWater);
@@ -99,44 +100,33 @@ client.on("message", (topic, message) => {
 
   if (topic === dataTopic && personajeVivo) {
     ({ humidity, light, temperature } = parsedMessage);
-    humidity = Math.min(humidity, 100);
-    light = Math.min(light, 100);
-    temperature = Math.min(temperature, 100);
+    humidity = humidity || 0;
+    light = light || 0;
+    temperature = temperature || 0;
     verificarYPublicarEstado();
   }
 
-
-  if (topic === revivirTopic && !personajeVivo) {
-    const { puntosVida: vidaRevivida } = parsedMessage; // Cambio de nombre a la variable para más claridad
-    console.log(vidaRevivida);
-
-    puntosVida = Math.min(vidaRevivida, maxVida); // Revivir con puntos de vida enviados
+  if (topic === revivirTopic && !personajeVivo && estado === 8) {
+    console.log(parsedMessage);
+    const { vida } = parsedMessage;
+    console.log(vida);
+    puntosVida = Math.min(vida, maxVida);
     personajeVivo = true;
+    estado = 9;
 
     console.log("El personaje ha revivido. Aplicando inmunidad temporal...");
 
-    estado = 9; // Estado de revivido
     client.publish(lifeTopic, JSON.stringify({ estado }));
 
     setTimeout(() => {
       console.log("Inmunidad terminada.");
-
-      // Reactiva el ciclo de descuento solo si puntosVida es 100
-      if (puntosVida === 100) {
-        console.log("Reactivando el ciclo de vida.");
-        iniciarDescuentoDeVida();
-      } else {
-        console.log("El personaje revivió pero con vida incompleta.");
-      }
-
-    }, 2000); // 2 segundos de inmunidad
+      iniciarDescuentoDeVida();
+    }, 2000);
 
     verificarYPublicarEstado();
   }
-
 });
 
-// Inicia la lógica de descuento de vida
 function iniciarDescuentoDeVida() {
   vidaInterval = setInterval(() => {
     if (personajeVivo) {
@@ -145,7 +135,6 @@ function iniciarDescuentoDeVida() {
   }, 5000);
 }
 
-// Inicia inmediatamente la primera vez
 iniciarDescuentoDeVida();
 
 function calcularIncremento(food, water) {
@@ -168,7 +157,6 @@ function descontarVidaYSustancias() {
   }
 }
 
-
 function verificarYPublicarEstado() {
   currentState = {
     puntosVida: puntosVida || 0,
@@ -182,8 +170,8 @@ function verificarYPublicarEstado() {
   };
 
   let estados = [];
-  console.log(puntosVida)
-  console.log(estado)
+  console.log(puntosVida);
+  console.log(estado);
   if (foodAmount < umbralHambre) {
     estados.push(1); // Hambre urgente
   }
@@ -206,7 +194,6 @@ function verificarYPublicarEstado() {
     estados.push(7); // Está lleno
   }
 
-
   if (estados.length > 0) {
     estado = Math.min(...estados); // Asignar el estado más crítico si no está muerto
   }
@@ -226,8 +213,6 @@ client.publish(
     estado,
   })
 );
-
-
 
 // API para exponer los estados actualizados
 app.get("/estado", (req, res) => {
