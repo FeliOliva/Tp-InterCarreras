@@ -5,7 +5,7 @@ const cors = require("cors");
 
 const app = express();
 app.use(cors());
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001;
 
 const usuario = process.env.USUARIO;
 const password = process.env.PASSWORD;
@@ -35,6 +35,7 @@ let humidity;
 let light;
 let personajeVivo = true;
 let estado = 0;
+let vidaInterval = null;
 
 const maxVida = 100;
 const umbralHambre = 40;
@@ -54,6 +55,8 @@ let currentState = {
   light,
 };
 
+let processing = false; // Bloqueo para evitar procesamiento simultáneo
+
 client.on("connect", () => {
   console.log("Publicador de vida conectado al broker.");
   client.subscribe(necesidadesTopic, () =>
@@ -69,79 +72,80 @@ client.on("connect", () => {
     console.log(`Suscrito al tópico ${revivirTopic}`)
   );
 
-  const vidaInterval = setInterval(() => {
-    if (personajeVivo) {
+  vidaInterval = setInterval(() => {
+    if (personajeVivo && !processing) {
       descontarVidaYSustancias();
-    } else {
-      clearInterval(vidaInterval);
     }
   }, 5000);
 });
 
 client.on("message", (topic, message) => {
   const parsedMessage = JSON.parse(message.toString());
-  console.log(parsedMessage);
-  if (topic === necesidadesTopic && personajeVivo) {
+
+  if (topic === necesidadesTopic && personajeVivo && !processing) {
     const { foodAmount: newFood, waterAmount: newWater } = parsedMessage;
-    let incrementoVida = calcularIncremento(newFood, newWater);
-    puntosVida = Math.min(puntosVida + incrementoVida, maxVida);
+    if (newFood !== foodAmount || newWater !== waterAmount) {
+      let incrementoVida = calcularIncremento(newFood, newWater);
+      puntosVida = Math.min(puntosVida + incrementoVida, maxVida);
 
-    foodAmount = Math.min(foodAmount + newFood, 100);
-    waterAmount = Math.min(waterAmount + newWater, 100);
+      foodAmount = Math.min(foodAmount + newFood, 100);
+      waterAmount = Math.min(waterAmount + newWater, 100);
 
-    verificarYPublicarEstado();
+      verificarYPublicarEstado();
+    }
   }
 
-  if (topic === happyTopic && personajeVivo) {
+  if (topic === happyTopic && personajeVivo && !processing) {
     const { happyValue } = parsedMessage;
-    happyAmount = Math.min(happyAmount + happyValue, 100);
-    verificarYPublicarEstado();
+    if (happyValue !== happyAmount) {
+      happyAmount = Math.min(happyAmount + happyValue, 100);
+      verificarYPublicarEstado();
+    }
   }
 
-  if (topic === dataTopic && personajeVivo) {
-    ({ humidity, light, temperature } = parsedMessage);
-    humidity = humidity || 0;
-    light = light || 0;
-    temperature = temperature || 0;
-    verificarYPublicarEstado();
+  if (topic === dataTopic && personajeVivo && !processing) {
+    const { humidity: newHumidity, light: newLight, temperature: newTemperature } = parsedMessage;
+
+    if (newHumidity !== humidity || newLight !== light || newTemperature !== temperature) {
+      humidity = newHumidity || 0;
+      light = newLight || 0;
+      temperature = newTemperature || 0;
+
+      verificarYPublicarEstado();
+    }
   }
 
   if (topic === revivirTopic && !personajeVivo && estado === 8) {
-    console.log(parsedMessage);
     const { vida } = parsedMessage;
-    console.log(vida);
+    foodAmount = 50;
+    waterAmount = 50;
     puntosVida = Math.min(vida, maxVida);
     personajeVivo = true;
     estado = 9;
 
-    console.log("El personaje ha revivido. Aplicando inmunidad temporal...");
-
     client.publish(lifeTopic, JSON.stringify({ estado }));
-
-    setTimeout(() => {
-      console.log("Inmunidad terminada.");
-      iniciarDescuentoDeVida();
-    }, 2000);
-
+    iniciarDescuentoDeVida();
     verificarYPublicarEstado();
   }
 });
 
 function iniciarDescuentoDeVida() {
+  if (vidaInterval) {
+    clearInterval(vidaInterval);
+  }
   vidaInterval = setInterval(() => {
-    if (personajeVivo) {
+    if (personajeVivo && !processing) {
       descontarVidaYSustancias();
     }
   }, 5000);
 }
-
-iniciarDescuentoDeVida();
 
 function calcularIncremento(food, water) {
   return food * 0.6 + water * 0.3;
 }
 
 function descontarVidaYSustancias() {
+  processing = true; // Bloquear durante el proceso
   if (puntosVida > 0) {
     puntosVida--;
     foodAmount = Math.max(foodAmount - 1, 0);
@@ -155,6 +159,7 @@ function descontarVidaYSustancias() {
     client.publish(lifeTopic, JSON.stringify({ estado }));
     verificarYPublicarEstado();
   }
+  processing = false; // Liberar al finalizar
 }
 
 function verificarYPublicarEstado() {
@@ -170,8 +175,6 @@ function verificarYPublicarEstado() {
   };
 
   let estados = [];
-  console.log(puntosVida);
-  console.log(estado);
   if (foodAmount < umbralHambre) {
     estados.push(1); // Hambre urgente
   }
@@ -194,32 +197,33 @@ function verificarYPublicarEstado() {
     estados.push(7); // Está lleno
   }
 
-  if (estados.length > 0) {
+  if (estados.length > 0 && estado !== 8) {
     estado = Math.min(...estados); // Asignar el estado más crítico si no está muerto
   }
+
+  // Determinar el estado más crítico
+  let nuevoEstado = estado;
+  if (estados.length > 0 && estado !== 8) {
+    nuevoEstado = Math.min(...estados);
+  } else if (puntosVida === 0) {
+    nuevoEstado = 8; // Personaje muerto
+  }
+
+  // Si el estado ha cambiado, lo publicamos
+  if (nuevoEstado !== estado) {
+    estado = nuevoEstado;
+    client.publish(lifeTopic, JSON.stringify({ estado }));
+    console.log("Estado actualizado a:", estado);
+  }
+  
+  // Publicar los datos actualizados
+  client.publish(lifeTopic, JSON.stringify(currentState));
 }
 
-// Publicar siempre los datos actuales
-client.publish(
-  lifeTopic,
-  JSON.stringify({
-    puntosVida: puntosVida || 0,
-    waterAmount: waterAmount || 0,
-    foodAmount: foodAmount || 0,
-    happyAmount: happyAmount || 0,
-    temperature: temperature || 0,
-    humidity: humidity || 0,
-    light: light || 0,
-    estado,
-  })
-);
-
-// API para exponer los estados actualizados
 app.get("/estado", (req, res) => {
   res.json(currentState);
 });
 
-// Servidor HTTP
 app.listen(port, () => {
   console.log(`API escuchando en http://localhost:${port}`);
 });

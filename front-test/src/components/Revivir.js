@@ -11,7 +11,7 @@ const Revivir = () => {
 
         try {
             const response = await axios.post('http://localhost:3004/revivir/publish', {
-                puntosVida: parseInt(100), // Convertir a número
+                vida: 100, // Convertir a número
             });
 
             alert(`Personaje revivido con 100 puntos de vida.`);

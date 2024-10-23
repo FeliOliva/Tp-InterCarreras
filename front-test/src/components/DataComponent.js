@@ -8,8 +8,9 @@ const DataComponent = () => {
 
     const fetchData = async () => {
         try {
-            const response = await axios.get('http://localhost:3000/estado');
+            const response = await axios.get('http://localhost:3001/estado');
             setData(response.data);
+            console.log(response.data);
         } catch (error) {
             console.error('Error fetching the data:', error);
         } finally {
@@ -21,13 +22,12 @@ const DataComponent = () => {
         fetchData();
         const interval = setInterval(() => {
             fetchData();
-        }, 5000);
+        }, 3000);
 
-        return () => clearInterval(interval); // Limpiar el intervalo al desmontar
+        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
-        // Verifica si `data` existe antes de acceder a `data.estado`
         if (data) {
             switch (data.estado) {
                 case 1:
