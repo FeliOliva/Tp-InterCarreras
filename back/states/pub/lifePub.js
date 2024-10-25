@@ -26,7 +26,7 @@ const happyTopic = "happy";
 const dataTopic = "data";
 const revivirTopic = "revivir";
 
-let puntosVida = 3;
+let puntosVida = 100;
 let waterAmount = 100;
 let foodAmount = 100;
 let happyAmount = 53;
