@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mascota Virtual IoT · Demo</title>
+<style>
+:root {
+  --bg:#0a0d0f; --bg2:#0f1317; --bg3:#141a20; --surface:#1a2028; --border:#1e2a35;
+  --text:#e8edf2; --muted:#4a6070; --accent:#00e87a; --blue:#00b8ff; --amber:#ffb830;
+  --red:#ff4d4d; --purple:#b06fff; --teal:#00d4aa; --orange:#ff7043;
+  --mono:'SFMono-Regular',Consolas,monospace;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+.root { padding:16px; min-height:100vh; }
+
+/* ── TOP BAR ── */
+.top-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+.top-title { display:flex; align-items:center; gap:10px; }
+.top-title h1 { font-size:.95rem; font-weight:700; }
+.top-title p { font-size:.7rem; color:var(--muted); margin-top:2px; }
+.mqtt-status { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:.68rem; color:var(--accent); background:rgba(0,232,122,.07); border:1px solid rgba(0,232,122,.2); padding:5px 12px; border-radius:100px; }
+.mqtt-dot { width:6px; height:6px; border-radius:50%; background:var(--accent); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── GRID ── */
+.grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+
+/* ── PET CARD ── */
+.pet-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+.pet-face { width:130px; height:130px; position:relative; }
+.pet-face canvas { width:130px; height:130px; }
+.pet-name { font-size:.95rem; font-weight:700; letter-spacing:.02em; }
+.pet-mood { font-size:.72rem; color:var(--muted); font-family:var(--mono); margin-top:-6px; }
+.pet-mood.happy  { color:var(--accent); }
+.pet-mood.full   { color:#7eff9e; }
+.pet-mood.revived{ color:var(--purple); }
+.pet-mood.neutral{ color:var(--amber); }
+.pet-mood.sleepy { color:var(--purple); }
+.pet-mood.humid  { color:var(--teal); }
+.pet-mood.sad    { color:var(--red); }
+.pet-mood.dead   { color:var(--muted); }
+
+.actions-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; }
+.act-btn { border:1px solid var(--border); background:var(--bg3); border-radius:8px; padding:9px 8px; font-size:.78rem; font-weight:600; font-family:inherit; cursor:pointer; color:var(--text); display:flex; align-items:center; justify-content:center; gap:6px; transition:all .15s; }
+.act-btn:hover  { transform:translateY(-1px); }
+.act-btn:active { transform:scale(.96); }
+.act-btn:disabled { opacity:.35; cursor:not-allowed; transform:none; }
+.act-btn.food:hover  { border-color:var(--amber);  color:var(--amber);  background:rgba(255,184,48,.07); }
+.act-btn.water:hover { border-color:var(--blue);   color:var(--blue);   background:rgba(0,184,255,.07); }
+.act-btn.happy:hover { border-color:var(--purple); color:var(--purple); background:rgba(176,111,255,.07); }
+.act-btn.revive:hover{ border-color:var(--accent); color:var(--accent); background:rgba(0,232,122,.07); }
+.act-btn.kill:hover  { border-color:var(--red);    color:var(--red);    background:rgba(255,77,77,.07);  }
+
+/* ── STATES CARD ── */
+.states-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:11px; }
+.card-title { font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
+.state-row { display:flex; flex-direction:column; gap:5px; }
+.state-header { display:flex; justify-content:space-between; align-items:center; }
+.state-label { font-size:.78rem; font-weight:600; display:flex; align-items:center; gap:6px; }
+.state-val { font-family:var(--mono); font-size:.75rem; font-weight:700; }
+.bar-track { height:7px; background:var(--bg3); border-radius:4px; overflow:hidden; border:1px solid var(--border); }
+.bar-fill { height:100%; border-radius:4px; transition:width .6s cubic-bezier(.4,0,.2,1), background .4s; }
+.slider-row { display:flex; align-items:center; gap:8px; margin-top:2px; }
+.slider-row span { font-size:.65rem; color:var(--muted); font-family:var(--mono); width:30px; flex-shrink:0; }
+.slider-row input[type=range] { flex:1; height:3px; cursor:pointer; border-radius:2px; -webkit-appearance:none; background:var(--bg3); outline:none; }
+.slider-row input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent); border:2px solid var(--bg); cursor:pointer; }
+.divider { border:none; border-top:1px solid var(--border); }
+
+/* estado badge */
+.estado-badge { display:flex; align-items:center; gap:8px; background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:8px 12px; }
+.estado-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.estado-text { font-size:.75rem; font-weight:600; }
+.estado-num { font-family:var(--mono); font-size:.68rem; color:var(--muted); margin-left:auto; }
+
+/* ── LOG CARD ── */
+.log-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+.log-list { display:flex; flex-direction:column; gap:4px; max-height:480px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
+.log-entry { font-family:var(--mono); font-size:.68rem; padding:6px 10px; border-radius:6px; background:var(--bg3); border-left:2px solid var(--border); line-height:1.5; animation:fadeIn .25s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:translateY(0)} }
+.log-entry .ts    { color:var(--muted); margin-right:6px; }
+.log-entry .topic { margin-right:6px; }
+.log-entry.info   .topic { color:var(--blue); }
+.log-entry.warn   { border-left-color:var(--amber); }
+.log-entry.warn   .topic { color:var(--amber); }
+.log-entry.alert  { border-left-color:var(--red); }
+.log-entry.alert  .topic { color:var(--red); }
+.log-entry.ok     { border-left-color:var(--accent); }
+.log-entry.ok     .topic { color:var(--accent); }
+.log-entry.action { border-left-color:var(--purple); }
+.log-entry.action .topic { color:var(--purple); }
+.log-entry.dead   { border-left-color:#555; }
+.log-entry.dead   .topic { color:#555; }
+
+@media (max-width:900px) {
+  .grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<div class="root">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="top-title">
+      <span style="font-size:1.5rem">🐾</span>
+      <div>
+        <h1>Mascota Virtual IoT</h1>
+        <p>Sistema de monitoreo de estados · Demo sin servidor</p>
+      </div>
+    </div>
+    <div class="mqtt-status"><span class="mqtt-dot"></span>MQTT · HiveMQ · simulado</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ── COLUMNA 1: MASCOTA ── -->
+    <div class="pet-card">
+      <canvas id="petCanvas" width="130" height="130"></canvas>
+      <div class="pet-name">🐾 Buki</div>
+      <div class="pet-mood" id="petMood">Estado: cargando...</div>
+
+      <div style="width:100%;border-top:1px solid var(--border);padding-top:10px">
+        <div class="card-title" style="margin-bottom:8px">Acciones</div>
+        <div class="actions-grid">
+          <button class="act-btn food"  id="btnFood"   onclick="doAction('food')">🍖 Dar comida</button>
+          <button class="act-btn water" id="btnWater"  onclick="doAction('water')">💧 Dar agua</button>
+          <button class="act-btn happy" id="btnHappy"  onclick="doAction('happy')">🎮 Jugar</button>
+          <button class="act-btn revive" id="btnRevive" onclick="doAction('revive')" style="grid-column:1/-1;opacity:.35;cursor:not-allowed" disabled>✨ Revivir</button>
+          <button class="act-btn kill"   id="btnKill"   onclick="doAction('kill')"   style="grid-column:1/-1;border-color:rgba(255,77,77,.3);color:var(--red)">☠️ Matar (demo)</button>
+        </div>
+      </div>
+
+      <!-- vida compacta bajo los botones -->
+      <div style="width:100%;display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--border);padding-top:10px">
+        <div class="state-header">
+          <span class="state-label" style="font-size:.72rem">❤️ Vida</span>
+          <span class="state-val" id="valVidaMini" style="color:var(--red)">100</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" id="barVidaMini" style="width:100%;background:var(--red)"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── COLUMNA 2: ESTADOS ── -->
+    <div class="states-card">
+      <div class="card-title">Vitales del personaje</div>
+
+      <!-- Vida -->
+      <div class="state-row">
+        <div class="state-header">
+          <span class="state-label">❤️ Puntos de vida</span>
+          <span class="state-val" id="valVida" style="color:var(--red)">100</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="barVida" style="width:100%;background:var(--red)"></div></div>
+      </div>
+
+      <!-- Comida -->
+      <div class="state-row">
+        <div class="state-header">
+          <span class="state-label">🍖 Comida</span>
+          <span class="state-val" id="valFood" style="color:var(--amber)">100</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="barFood" style="width:100%;background:var(--amber)"></div></div>
+      </div>
+
+      <!-- Agua -->
+      <div class="state-row">
+        <div class="state-header">
+          <span class="state-label">💧 Agua</span>
+          <span class="state-val" id="valWater" style="color:var(--blue)">100</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="barWater" style="width:100%;background:var(--blue)"></div></div>
+      </div>
+
+      <!-- Felicidad -->
+      <div class="state-row">
+        <div class="state-header">
+          <span class="state-label">😊 Felicidad</span>
+          <span class="state-val" id="valHappy" style="color:var(--purple)">53</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="barHappy" style="width:53%;background:var(--purple)"></div></div>
+      </div>
+
+      <hr class="divider">
+      <div class="card-title">Sensores IoT (tópico: data)</div>
+
+      <!-- Temperatura -->
+      <div class="state-row">
+        <div class="state-header">
+          <span class="state-label">🌡️ Temperatura</span>
+          <span class="state-val" id="valTemp">22°C</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="barTemp" style="width:44%;background:var(--accent)"></div></div>
+        <div class="slider-row">
+          <span>10°</span>
+          <input type="range" min="10" max="40" value="22" id="sliderTemp" oninput="setSensor('temp', this.value)">
+          <span>40°</span>
+        </div>
+      </div>
+
+      <!-- Luz -->
+      <div class="state-row">
+        <div class="state-header">
+          <span class="state-label">💡 Luz</span>
+          <span class="state-val" id="valLight">500 lux</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="barLight" style="width:50%;background:var(--amber)"></div></div>
+        <div class="slider-row">
+          <span>0</span>
+          <input type="range" min="0" max="1000" value="500" id="sliderLight" oninput="setSensor('light', this.value)">
+          <span>1000</span>
+        </div>
+      </div>
+
+      <!-- Humedad -->
+      <div class="state-row">
+        <div class="state-header">
+          <span class="state-label">💨 Humedad</span>
+          <span class="state-val" id="valHumidity">50%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="barHumidity" style="width:50%;background:var(--teal)"></div></div>
+        <div class="slider-row">
+          <span>0</span>
+          <input type="range" min="0" max="100" value="50" id="sliderHumidity" oninput="setSensor('humidity', this.value)">
+          <span>100</span>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <!-- Estado actual -->
+      <div class="card-title">Estado actual</div>
+      <div class="estado-badge" id="estadoBadge">
+        <div class="estado-dot" id="estadoDot" style="background:var(--accent)"></div>
+        <span class="estado-text" id="estadoText">Cargando...</span>
+        <span class="estado-num" id="estadoNum">#0</span>
+      </div>
+    </div>
+
+    <!-- ── COLUMNA 3: LOG ── -->
+    <div class="log-card">
+      <div class="card-title">Log de eventos · MQTT</div>
+      <div id="logList" class="log-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── ESTADO GLOBAL ──
+var s = {
+  puntosVida: 100,
+  foodAmount:  100,
+  waterAmount: 100,
+  happyAmount: 53,
+  temperature: 22,
+  light:       500,
+  humidity:    50,
+  estado:      0,
+  personajeVivo: true
+};
+
+// Umbrales (igual que lifePub.js)
+var UMBRAL_HAMBRE    = 40;
+var UMBRAL_SED       = 60;
+var UMBRAL_FELICIDAD = 50;
+var UMBRAL_CALOR     = 24;
+var UMBRAL_SUENIO    = 300;
+var UMBRAL_HUMEDAD   = 80;
+var MAX_VIDA         = 100;
+
+var faceFrame = 0;
+var blinkTimer = 0;
+var revivirFlash = 0;
+var deathFlash = 0;
+var killingInProgress = false;
+var logEntries = [];
+
+// ── LOG ──
+function ts() {
+  var d = new Date();
+  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    .map(function(n){ return n.toString().padStart(2,'0'); }).join(':');
+}
+
+function addLog(type, topic, msg) {
+  logEntries.unshift({ type:type, topic:topic, msg:msg, time:ts() });
+  if (logEntries.length > 50) logEntries.pop();
+  renderLog();
+}
+
+function renderLog() {
+  var el = document.getElementById('logList');
+  el.innerHTML = logEntries.map(function(e) {
+    return '<div class="log-entry '+e.type+'">'
+      + '<span class="ts">'+e.time+'</span>'
+      + '<span class="topic">'+e.topic+'</span>'
+      + '<span class="msg">'+e.msg+'</span>'
+      + '</div>';
+  }).join('');
+}
+
+// ── CÁLCULO DE ESTADO (igual que lifePub.js) ──
+function calcularEstado() {
+  if (!s.personajeVivo || s.puntosVida <= 0) return 8;
+
+  var estados = [];
+  if (s.foodAmount  < UMBRAL_HAMBRE)    estados.push(1);
+  if (s.waterAmount < UMBRAL_SED)       estados.push(2);
+  if (s.happyAmount < UMBRAL_FELICIDAD) estados.push(3);
+  if (s.temperature > UMBRAL_CALOR)     estados.push(4);
+  if (s.light       < UMBRAL_SUENIO)    estados.push(5);
+  if (s.humidity    > UMBRAL_HUMEDAD)   estados.push(6);
+  if (s.foodAmount  >= 99)              estados.push(7);
+
+  if (estados.length > 0) return Math.min.apply(null, estados);
+  return 0;
+}
+
+var ESTADO_INFO = {
+  0: { label:'✓ Normal',                  color:'var(--accent)',  mood:'happy'   },
+  1: { label:'🍖 Hambre urgente',          color:'var(--orange)', mood:'sad'     },
+  2: { label:'💧 Necesita agua',           color:'var(--blue)',   mood:'sad'     },
+  3: { label:'😴 Está aburrido',           color:'var(--amber)',  mood:'neutral' },
+  4: { label:'🔥 Sofocado por calor',      color:'var(--red)',    mood:'sad'     },
+  5: { label:'😪 Tiene sueño',             color:'var(--purple)', mood:'sleepy'  },
+  6: { label:'💦 Incómodo por humedad',    color:'var(--teal)',   mood:'neutral' },
+  7: { label:'😋 Está lleno',              color:'#7eff9e',       mood:'full'    },
+  8: { label:'💀 Muerto',                  color:'#555',          mood:'dead'    },
+  9: { label:'✨ ¡Revivido!',             color:'var(--purple)', mood:'revived' },
+};
+
+// ── ACTUALIZAR UI ──
+function update() {
+  var nuevoEstado = s.estado === 9 ? 9 : calcularEstado();
+
+  if (nuevoEstado !== s.estado && s.estado !== 9) {
+    var prev = s.estado;
+    s.estado = nuevoEstado;
+    var info = ESTADO_INFO[s.estado] || ESTADO_INFO[0];
+    addLog(
+      s.estado === 8 ? 'alert' : s.estado === 0 ? 'ok' : 'warn',
+      'life',
+      '→ estado ' + s.estado + ': ' + info.label
+    );
+  }
+
+  var info = ESTADO_INFO[s.estado] || ESTADO_INFO[0];
+
+  // Barras de vitales
+  setBar('Vida',     s.puntosVida,  100, 'var(--red)',    'valVida');
+  setBar('VidaMini', s.puntosVida,  100, 'var(--red)',    'valVidaMini');
+  setBar('Food',     s.foodAmount,  100, 'var(--amber)',  'valFood');
+  setBar('Water',    s.waterAmount, 100, 'var(--blue)',   'valWater');
+  setBar('Happy',    s.happyAmount, 100, 'var(--purple)', 'valHappy');
+
+  // Barras de sensores
+  var tempPct = ((s.temperature - 10) / 30) * 100;
+  var tempColor = s.temperature > UMBRAL_CALOR ? 'var(--red)' : 'var(--accent)';
+  document.getElementById('barTemp').style.width = Math.min(100, Math.max(0, tempPct)) + '%';
+  document.getElementById('barTemp').style.background = tempColor;
+  document.getElementById('valTemp').textContent = s.temperature + '°C';
+
+  var lightPct = (s.light / 1000) * 100;
+  var lightColor = s.light < UMBRAL_SUENIO ? 'var(--purple)' : 'var(--amber)';
+  document.getElementById('barLight').style.width = Math.min(100, Math.max(0, lightPct)) + '%';
+  document.getElementById('barLight').style.background = lightColor;
+  document.getElementById('valLight').textContent = s.light + ' lux';
+
+  var humColor = s.humidity > UMBRAL_HUMEDAD ? 'var(--blue)' : 'var(--teal)';
+  document.getElementById('barHumidity').style.width = s.humidity + '%';
+  document.getElementById('barHumidity').style.background = humColor;
+  document.getElementById('valHumidity').textContent = s.humidity + '%';
+
+  // Estado badge
+  document.getElementById('estadoDot').style.background = info.color;
+  document.getElementById('estadoText').textContent = info.label;
+  document.getElementById('estadoNum').textContent = '#' + s.estado;
+
+  // Mood label
+  var moodTexts = {
+    happy:   '😊 Buki está feliz',
+    full:    '😋 Buki está llena',
+    revived: '✨ ¡Buki volvió!',
+    neutral: '😐 Buki está incómoda',
+    sleepy:  '😪 Buki tiene sueño',
+    sad:     '😢 Buki está mal',
+    dead:    '💀 Buki ha muerto',
+  };
+  var moodEl = document.getElementById('petMood');
+  moodEl.textContent = moodTexts[info.mood] || moodTexts['neutral'];
+  moodEl.className = 'pet-mood ' + info.mood;
+
+  // Botones
+  var dead = s.estado === 8;
+  ['btnFood','btnWater','btnHappy'].forEach(function(id){
+    document.getElementById(id).disabled = dead || killingInProgress;
+  });
+  var btnRevive = document.getElementById('btnRevive');
+  btnRevive.disabled = !dead;
+  btnRevive.style.opacity = dead ? '1' : '.35';
+  btnRevive.style.cursor  = dead ? 'pointer' : 'not-allowed';
+  var btnKill = document.getElementById('btnKill');
+  btnKill.disabled = dead || killingInProgress;
+  btnKill.style.opacity = (dead || killingInProgress) ? '.35' : '1';
+  btnKill.style.cursor  = (dead || killingInProgress) ? 'not-allowed' : 'pointer';
+}
+
+function setBar(key, value, max, color, valId) {
+  var pct = Math.min(100, Math.max(0, (value / max) * 100));
+  document.getElementById('bar'  + key).style.width      = pct + '%';
+  document.getElementById('bar'  + key).style.background = color;
+  document.getElementById(valId).textContent             = value;
+}
+
+// ── SENSOR SLIDERS ──
+function setSensor(key, val) {
+  val = Number(val);
+  s[key === 'temp' ? 'temperature' : key === 'light' ? 'light' : 'humidity'] = val;
+
+  var topicMap = { temp:'data', light:'data', humidity:'data' };
+  var topic = 'data';
+  var type = 'info', msg = '';
+
+  if (key === 'temp') {
+    msg = 'temperature=' + val + '°C';
+    if (val > 35) { type='alert'; msg='⚠ calor extremo: '+val+'°C'; }
+    else if (val > UMBRAL_CALOR) { type='warn'; msg='temperatura alta: '+val+'°C'; }
+    else { type='ok'; msg='temp. confortable: '+val+'°C'; }
+  } else if (key === 'light') {
+    msg = 'light=' + val + ' lux';
+    if (val < 100)          { type='alert'; msg='⚠ muy oscuro: '+val+' lux'; }
+    else if (val < UMBRAL_SUENIO) { type='warn'; msg='poca luz: '+val+' lux'; }
+    else                    { type='ok';    msg='luz ok: '+val+' lux'; }
+  } else if (key === 'humidity') {
+    msg = 'humidity=' + val + '%';
+    if (val > UMBRAL_HUMEDAD) { type='warn'; msg='humedad alta: '+val+'%'; }
+    else                      { type='info'; msg='humedad=' +val+'%'; }
+  }
+
+  addLog(type, topic, msg);
+  update();
+}
+
+// ── ACCIONES ──
+function doAction(action) {
+  if (!s.personajeVivo && action !== 'revive') return;
+
+  if (action === 'food') {
+    var food = 30;
+    var incVida = food * 0.6;
+    s.puntosVida = Math.min(s.puntosVida + incVida, MAX_VIDA);
+    s.foodAmount  = Math.min(s.foodAmount  + food, 100);
+    addLog('action', 'necesidades', '🍖 Comida suministrada (+'+food+') · vida +'+incVida+' → food='+s.foodAmount);
+
+  } else if (action === 'water') {
+    var water = 30;
+    var incVida = water * 0.3;
+    s.puntosVida  = Math.min(s.puntosVida  + incVida, MAX_VIDA);
+    s.waterAmount = Math.min(s.waterAmount + water, 100);
+    addLog('action', 'necesidades', '💧 Agua suministrada (+'+water+') · vida +'+incVida+' → water='+s.waterAmount);
+
+  } else if (action === 'happy') {
+    var happyVal = 20;
+    s.happyAmount = Math.min(s.happyAmount + happyVal, 100);
+    addLog('action', 'happy', '🎮 Sesión de juego (+'+happyVal+') → happy='+s.happyAmount);
+
+  } else if (action === 'kill') {
+    if (!s.personajeVivo || killingInProgress) return;
+    killingInProgress = true;
+    addLog('alert', 'life', '☠️ Iniciando secuencia de muerte demostrativa...');
+    update();
+    // Drena la vida progresivamente cada 80ms
+    var drainInterval = setInterval(function() {
+      if (s.puntosVida > 0) {
+        s.puntosVida = Math.max(0, s.puntosVida - 8);
+        s.foodAmount  = Math.max(0, s.foodAmount  - 5);
+        s.waterAmount = Math.max(0, s.waterAmount - 5);
+        s.happyAmount = Math.max(0, s.happyAmount - 5);
+        deathFlash = 6;
+        update();
+      } else {
+        clearInterval(drainInterval);
+        killingInProgress = false;
+        s.personajeVivo = false;
+        s.estado = 8;
+        deathFlash = 60;
+        addLog('dead', 'life', '💀 puntosVida=0 · Buki ha muerto (demo)');
+        update();
+      }
+    }, 80);
+    return;
+
+  } else if (action === 'revive') {
+    if (s.personajeVivo) return;
+    s.foodAmount   = 50;
+    s.waterAmount  = 50;
+    s.puntosVida   = 100;
+    s.personajeVivo = true;
+    s.estado = 9;
+    revivirFlash = 90;
+    addLog('ok', 'revivir', '✨ Buki fue revivida · puntosVida=100 · food=50 · water=50');
+    setTimeout(function(){
+      if (s.estado === 9) {
+        s.estado = calcularEstado();
+        update();
+      }
+    }, 3000);
+  }
+
+  update();
+}
+
+// ── AUTO-DEGRADACIÓN (cada 5 s, igual que lifePub.js) ──
+setInterval(function() {
+  if (!s.personajeVivo) return;
+  if (s.puntosVida > 0) {
+    s.puntosVida--;
+    s.foodAmount   = Math.max(s.foodAmount  - 1, 0);
+    s.waterAmount  = Math.max(s.waterAmount - 1, 0);
+    s.happyAmount  = Math.max(s.happyAmount - 1, 0);
+
+    // Alertas automáticas en umbrales
+    if (s.foodAmount  === UMBRAL_HAMBRE - 1)
+      addLog('warn', 'life', '⚠ food cayó a '+s.foodAmount+' (umbral: '+UMBRAL_HAMBRE+')');
+    if (s.waterAmount === UMBRAL_SED - 1)
+      addLog('warn', 'life', '⚠ water cayó a '+s.waterAmount+' (umbral: '+UMBRAL_SED+')');
+    if (s.happyAmount === UMBRAL_FELICIDAD - 1)
+      addLog('warn', 'life', '⚠ happy cayó a '+s.happyAmount+' (umbral: '+UMBRAL_FELICIDAD+')');
+    if (s.puntosVida === 20)
+      addLog('alert', 'life', '🔴 vida crítica: '+s.puntosVida);
+
+    update();
+  } else {
+    s.personajeVivo = false;
+    s.estado = 8;
+    addLog('alert', 'life', '💀 puntosVida=0 · Buki ha muerto');
+    update();
+  }
+}, 5000);
+
+// ── PARPADEO ──
+setInterval(function(){ blinkTimer = 8; setTimeout(function(){ blinkTimer = 0; }, 150); }, 4000);
+
+// ── DIBUJO DE LA CARA ──
+function getBodyColors(estado) {
+  var colors = {
+    0: { body1:'#a8e6cf', body2:'#3eb06a', ear:'#5cb85c',     tail:'#3eb06a'   },
+    1: { body1:'#ffcc80', body2:'#e65100', ear:'#bf360c',     tail:'#e65100'   },
+    2: { body1:'#90caf9', body2:'#1565c0', ear:'#0d47a1',     tail:'#1565c0'   },
+    3: { body1:'#ffe082', body2:'#e6a020', ear:'#d4880a',     tail:'#e6a020'   },
+    4: { body1:'#ef9a9a', body2:'#c0392b', ear:'#a93226',     tail:'#c0392b'   },
+    5: { body1:'#ce93d8', body2:'#7b1fa2', ear:'#6a1b9a',     tail:'#7b1fa2'   },
+    6: { body1:'#80deea', body2:'#00838f', ear:'#006064',     tail:'#00838f'   },
+    7: { body1:'#b9fbc0', body2:'#1b9e37', ear:'#157a2c',     tail:'#1b9e37'   },
+    8: { body1:'#78909c', body2:'#37474f', ear:'#263238',     tail:'#37474f'   },
+    9: { body1:'#e1bee7', body2:'#8e24aa', ear:'#6a1b9a',     tail:'#8e24aa'   },
+  };
+  return colors[estado] || colors[0];
+}
+
+function drawFace() {
+  var canvas = document.getElementById('petCanvas');
+  var ctx    = canvas.getContext('2d');
+  var W = 130, H = 130, cx = 65, cy = 58;
+  ctx.clearRect(0, 0, W, H);
+
+  var estado = s.estado;
+  var info   = ESTADO_INFO[estado] || ESTADO_INFO[0];
+  var mood   = info.mood;
+  var c      = getBodyColors(estado);
+  faceFrame++;
+  var f = faceFrame;
+
+  if (revivirFlash > 0) revivirFlash--;
+  if (deathFlash   > 0) deathFlash--;
+
+  // Bounce (no bounces when dead)
+  var by = (mood === 'dead') ? 0 : Math.sin(f * (mood === 'full' ? 0.09 : 0.05)) * (mood === 'sleepy' ? 1 : 3);
+
+  ctx.save();
+  ctx.translate(0, by);
+
+  // Sombra
+  ctx.beginPath();
+  ctx.ellipse(cx, H - 8, 30, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,' + (mood === 'dead' ? '0.15' : '0.35') + ')';
+  ctx.fill();
+
+  // Brillo especial al revivir
+  if (revivirFlash > 0) {
+    var alpha = (revivirFlash / 90) * 0.3;
+    var glow = ctx.createRadialGradient(cx, cy, 5, cx, cy, 60);
+    glow.addColorStop(0, 'rgba(176,111,255,' + (alpha * 2) + ')');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 60, 60, 0, 0, Math.PI * 2);
+    ctx.fillStyle = glow;
+    ctx.fill();
+  }
+
+  // Flash rojo al morir
+  if (deathFlash > 0) {
+    var dAlpha = (deathFlash / 60) * 0.45;
+    var dglow = ctx.createRadialGradient(cx, cy, 5, cx, cy, 65);
+    dglow.addColorStop(0, 'rgba(255,50,50,' + (dAlpha * 2) + ')');
+    dglow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 65, 65, 0, 0, Math.PI * 2);
+    ctx.fillStyle = dglow;
+    ctx.fill();
+  }
+
+  // Gradiente del cuerpo
+  var grad = ctx.createRadialGradient(cx - 8, cy - 8, 5, cx, cy, 40);
+  grad.addColorStop(0, c.body1);
+  grad.addColorStop(1, c.body2);
+
+  // Cuerpo
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 5, 42, 48, 0, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Orejas
+  ctx.fillStyle = c.ear;
+  ctx.beginPath(); ctx.ellipse(cx - 28, cy - 32, 10, 13, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx + 28, cy - 32, 10, 13,  0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,180,180,0.5)';
+  ctx.beginPath(); ctx.ellipse(cx - 28, cy - 32, 5, 7, -0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx + 28, cy - 32, 5, 7,  0.4, 0, Math.PI * 2); ctx.fill();
+
+  // Cabeza
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 10, 36, 34, 0, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Ojos
+  var blinkH = blinkTimer > 0 ? 1 : 9;
+  if (mood === 'sleepy') blinkH = 4;  // ojos entrecerrados
+
+  if (mood === 'dead') {
+    // Ojos en X
+    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    [[cx-13, cy-14],[cx+13, cy-14]].forEach(function(pos){
+      var x = pos[0], y = pos[1];
+      ctx.beginPath(); ctx.moveTo(x-5, y-5); ctx.lineTo(x+5, y+5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x+5, y-5); ctx.lineTo(x-5, y+5); ctx.stroke();
+    });
+  } else {
+    var eyeColor = (mood === 'sad' || mood === 'neutral') ? '#555' : '#2c3e50';
+    ctx.fillStyle = eyeColor;
+    ctx.beginPath(); ctx.ellipse(cx - 13, cy - 14, 8, blinkH, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 13, cy - 14, 8, blinkH, 0, 0, Math.PI * 2); ctx.fill();
+
+    if (blinkH > 1) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.ellipse(cx - 11, cy - 16, 3, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx + 15, cy - 16, 3, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.beginPath(); ctx.ellipse(cx - 11, cy - 16, 1.5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(cx + 15, cy - 16, 1.5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Zzzs al tener sueño
+    if (mood === 'sleepy' && f % 80 < 60) {
+      ctx.fillStyle = 'rgba(176,111,255,0.8)';
+      ctx.font = 'bold ' + (10 + (f%80) * 0.1) + 'px sans-serif';
+      ctx.fillText('z', cx + 28, cy - 28 - (f % 80) * 0.3);
+      ctx.font = 'bold 8px sans-serif';
+      ctx.fillText('z', cx + 36, cy - 38 - (f % 80) * 0.2);
+    }
+  }
+
+  // Boca
+  ctx.strokeStyle = mood === 'dead' ? '#555' : '#2c3e50';
+  ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath();
+  if (mood === 'happy' || mood === 'full' || mood === 'revived') {
+    ctx.arc(cx, cy - 4, 10, 0.3, Math.PI - 0.3);
+  } else if (mood === 'neutral' || mood === 'sleepy' || mood === 'humid') {
+    ctx.moveTo(cx - 9, cy + 2); ctx.lineTo(cx + 9, cy + 2);
+  } else if (mood === 'dead') {
+    ctx.moveTo(cx - 8, cy + 4); ctx.lineTo(cx + 8, cy + 4);
+  } else {
+    ctx.arc(cx, cy + 10, 10, Math.PI + 0.3, -0.3);
+  }
+  ctx.stroke();
+
+  // Mejillas (feliz/lleno/revivido)
+  if (mood === 'happy' || mood === 'full' || mood === 'revived') {
+    ctx.fillStyle = 'rgba(255,150,150,0.3)';
+    ctx.beginPath(); ctx.ellipse(cx - 22, cy - 6, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 22, cy - 6, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Lágrimas (triste)
+  if ((mood === 'sad') && f % 60 < 30) {
+    ctx.fillStyle = 'rgba(100,181,246,0.7)';
+    var ty = cy - 10 + ((f % 60) / 60) * 30;
+    ctx.beginPath(); ctx.ellipse(cx - 13, ty, 2, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 13, ty, 2, 4, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Gotas de sudor (calor)
+  if (estado === 4) {
+    ctx.fillStyle = 'rgba(255,200,50,0.7)';
+    var sw = Math.sin(f * 0.1);
+    ctx.beginPath(); ctx.ellipse(cx - 5, cy - 40 + sw * 3, 3, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + 20, cy - 35 + sw * 2, 2, 4, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Cola
+  var tailSpeed = mood === 'full' || mood === 'happy' || mood === 'revived' ? 0.18 : 0.06;
+  var tailWag = Math.sin(f * tailSpeed) * (mood === 'dead' ? 0 : 18);
+  ctx.save();
+  ctx.translate(cx + 42, cy + 30);
+  ctx.rotate((tailWag * Math.PI) / 180);
+  ctx.strokeStyle = c.tail;
+  ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(12, -12, 8, -24);
+  ctx.stroke();
+  ctx.restore();
+
+  // Patas
+  ctx.fillStyle = c.ear;
+  ctx.beginPath(); ctx.ellipse(cx - 22, cy + 48, 10, 7, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx + 22, cy + 48, 10, 7, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+// ── LOOP DE ANIMACIÓN ──
+function loop() {
+  drawFace();
+  requestAnimationFrame(loop);
+}
+
+// ── LOGS INICIALES ──
+addLog('ok',   'mascota/sistema',   '✓ Conexión establecida · HiveMQ simulado');
+addLog('info', 'life',              'personajeVivo=true · puntosVida=100');
+addLog('info', 'mascota/sensor/todos', 'Sensores iniciales cargados');
+addLog('info', 'mascota/estado',    'Buki está lista 🐾');
+
+update();
+loop();
+</script>
+</body>
+</html>
